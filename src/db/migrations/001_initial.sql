@@ -1,6 +1,8 @@
 CREATE TABLE IF NOT EXISTS automations (
   id UUID PRIMARY KEY,
   version INTEGER NOT NULL,
+  -- store definitions as JSONB so the product model can evolve without
+  -- requiring a relational schema change for every new type
   definition JSONB NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT TRUE
 );

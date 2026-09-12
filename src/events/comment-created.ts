@@ -15,18 +15,24 @@ export async function handleCommentCreated(
   event: CommentCreatedEvent,
   dependencies: CommentCreatedDependencies,
 ): Promise<void> {
+  // webhooks may be delivered more than once, so we deduplicate by the external event id
   const firstDelivery = await dependencies.events.tryMarkProcessed(event.platform, event.id);
 
   if (!firstDelivery) return;
 
   const automations = await dependencies.automations.findEnabledAutomations();
+  // prototype selects the first matching automation
+  // in prod system may allow multiple automations to match the same event
   const automation = automations.find(
     (candidate): candidate is ConditionalCommentCreatedAutomation =>
       isConditionalCommentAutomation(candidate) && matchesAutomation(candidate, event),
   );
 
-  if (!automation) return; // In production, record this outcome in logs and metrics.
+  if (!automation) return;
 
+  // note: marking the event processed and starting Temporal are not atomic here
+  // in prod code would use an outbox or equivalent durable handoff so a crash
+  // between these operations cannot lose the automation start
   await dependencies.temporal.startAutomationWorkflow({
     workflowId: `automation:${automation.id}:comment:${event.commentId}`,
     input: {

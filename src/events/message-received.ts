@@ -3,6 +3,8 @@ import type { MessageReceivedEvent } from "../domain/events.js";
 import type { TemporalGateway } from "../temporal/client.js";
 
 export type CorrelatedMessageReceivedEvent = MessageReceivedEvent & {
+  // it's a simplification for the prototype, assuming workflow matching already happened upstream
+  // in production it would be resolved from account/user/conversation identifiers
   workflowId: string;
 };
 

@@ -1,6 +1,7 @@
 import { matchesAutomation } from "../automations/matcher.js";
 import type { AutomationRepository } from "../db/automation-repository.js";
 import type { EventRepository } from "../db/event-repository.js";
+import type { Automation, ConditionalCommentCreatedAutomation } from "../domain/automation.js";
 import type { CommentCreatedEvent } from "../domain/events.js";
 import type { TemporalGateway } from "../temporal/client.js";
 
@@ -19,9 +20,12 @@ export async function handleCommentCreated(
   if (!firstDelivery) return;
 
   const automations = await dependencies.automations.findEnabledAutomations();
-  const automation = automations.find((candidate) => matchesAutomation(candidate, event)); // in prod would be a separate matching service
+  const automation = automations.find(
+    (candidate): candidate is ConditionalCommentCreatedAutomation =>
+      isConditionalCommentAutomation(candidate) && matchesAutomation(candidate, event),
+  );
 
-  if (!automation) return; // in prod - log for observability, maybe metrics
+  if (!automation) return; // In production, record this outcome in logs and metrics.
 
   await dependencies.temporal.startAutomationWorkflow({
     workflowId: `automation:${automation.id}:comment:${event.commentId}`,
@@ -30,7 +34,11 @@ export async function handleCommentCreated(
       automationVersion: automation.version,
       commentId: event.commentId,
       userId: event.userId,
-      finalLink: automation.finalLink,
+      steps: automation.steps,
     },
   });
+}
+
+function isConditionalCommentAutomation(automation: Automation): automation is ConditionalCommentCreatedAutomation {
+  return "conditions" in automation.trigger;
 }

@@ -1,4 +1,4 @@
-import type { Automation } from "../domain/automation.js";
+import type { Automation, AutomationDefinition } from "../domain/automation.js";
 import { pool } from "./pool.js";
 
 export interface AutomationRepository {
@@ -6,16 +6,15 @@ export interface AutomationRepository {
 }
 
 export const automationRepository: AutomationRepository = {
-  // in non-simplified version it'd be a dedicated service with extendable matching logic
-  // to support growing number of cases
+  // A larger system would validate definitions at this repository boundary and
+  // delegate matching to a registry of trigger implementations.
   async findEnabledAutomations(): Promise<Automation[]> {
     const result = await pool.query<{
       id: string;
       version: number;
-      trigger_keyword: string;
-      final_link: string;
+      definition: AutomationDefinition;
     }>(
-      `SELECT id, version, trigger_keyword, final_link
+      `SELECT id, version, definition
        FROM automations
        WHERE enabled = TRUE`,
     );
@@ -23,8 +22,7 @@ export const automationRepository: AutomationRepository = {
     return result.rows.map((row) => ({
       id: row.id,
       version: row.version,
-      triggerKeyword: row.trigger_keyword,
-      finalLink: row.final_link,
-    }));
+      ...row.definition,
+    })) as Automation[];
   },
 };

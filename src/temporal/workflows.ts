@@ -1,4 +1,5 @@
 import { condition, defineSignal, proxyActivities, setHandler } from "@temporalio/workflow";
+import type { AutomationStep } from "../domain/automation.js";
 import type { Activities } from "./activities.js";
 
 export type AutomationWorkflowInput = {
@@ -6,7 +7,7 @@ export type AutomationWorkflowInput = {
   automationVersion: number;
   commentId: string;
   userId: string;
-  finalLink: string;
+  steps: AutomationStep[];
 };
 
 export const messageReceivedSignal = defineSignal<[string]>("messageReceived");
@@ -17,26 +18,42 @@ const { replyToComment, sendDM } = proxyActivities<Activities>({
 });
 
 export async function automationWorkflow(input: AutomationWorkflowInput): Promise<void> {
-  let receivedMessage: string | undefined;
+  const receivedMessages: string[] = [];
 
   setHandler(messageReceivedSignal, (text) => {
-    receivedMessage = text;
+    receivedMessages.push(text);
   });
 
-  await replyToComment({
-    commentId: input.commentId,
-    text: "Sent you a DM!",
-  });
+  for (const step of input.steps) {
+    switch (step.type) {
+      case "reply_to_comment":
+        await replyToComment({
+          commentId: input.commentId,
+          text: step.text,
+        });
+        break;
 
-  await sendDM({
-    userId: input.userId,
-    text: "What's your email address?",
-  });
+      case "send_dm":
+        await sendDM({
+          userId: input.userId,
+          text: step.text,
+        });
+        break;
 
-  await condition(() => receivedMessage !== undefined);
+      case "wait_for_message": {
+        await condition(() => receivedMessages.some((message) => isValidMessage(step.validator, message)));
+        const messageIndex = receivedMessages.findIndex((message) => isValidMessage(step.validator, message));
+        receivedMessages.splice(messageIndex, 1);
+        break;
+      }
+    }
+  }
+}
 
-  await sendDM({
-    userId: input.userId,
-    text: `Thanks! Here's your link: ${input.finalLink}`,
-  });
+function isValidMessage(validator: "email", _message: string): boolean {
+  switch (validator) {
+    case "email":
+      // Validation remains deliberately trivial for this prototype.
+      return true;
+  }
 }

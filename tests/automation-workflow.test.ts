@@ -44,7 +44,12 @@ describe("automationWorkflow", () => {
             automationVersion: 1,
             commentId: "comment-1",
             userId: "user-1",
-            finalLink: "https://example.com",
+            steps: [
+              { type: "reply_to_comment", text: "Sent you a DM!" },
+              { type: "send_dm", text: "What's your email address?" },
+              { type: "wait_for_message", validator: "email" },
+              { type: "send_dm", text: "Thanks! Here's your link: https://example.com" },
+            ],
           },
         ],
       });

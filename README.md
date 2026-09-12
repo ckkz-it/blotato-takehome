@@ -136,11 +136,14 @@ Without Temporal I would need to implement and maintain things like:
 * concurrency around resuming executions
 * recovery after worker failures
 
-These are not really part of the product itself, so I would rather use existing infrastructure for them, especially for a startup like yours.
+These are not really part of the product itself, so I would rather use existing infrastructure for them, especially in a startup.
 
 Similar to using Postgres instead of building a database.
 
 Postgres is still used for product/application state. Temporal is only responsible for workflow execution.
+
+> Without Temporal I would persist `execution_id`/`current_step`/`status`, register waiting subscriptions (new table) in Postgres, enqueue runnable steps, and resume executions from matching inbound events.
+> That design is also reasonable. I chose Temporal here because durable waiting and retries are core requirements and are already provided by it.
 
 ## Data model
 
@@ -159,9 +162,9 @@ enabled
 
 `definition` contains the trigger and steps as JSONB.
 
-The workflow receives the automation definition when it starts, so an already running workflow is not affected if the automation is changed later.
+The workflow receives a snapshot of the steps when it starts, so an already running workflow is not affected if the automation is changed later.
 
-`enabled` could be also named `status` to support more states (e.g. `active`, `archived`, `deprecated`, etc).
+`enabled` could also be named `status` to support more states (e.g. `active`, `archived`, `deprecated`, etc).
 
 ### `processed_events`
 
@@ -181,11 +184,11 @@ Temporal itself stores the state/history of workflow executions, so I don't dupl
 
 I'm assuming `external_event_id` exists, otherwise some other column would be used for deduplication, e.g. `comment_id` in this case.
 
-## Potential system architecture
+## Production architecture
 
 In the prototype I store processed event ids in Postgres and route events directly to Temporal.
 
-In production I would likely introduce an asynchronous layer between events ingestion and execution.
+In production I would likely introduce an asynchronous layer between event ingestion and execution.
 
 My first choice would be a transactional outbox (or a queue fed by it, both would work just fine), because it solves the Postgres → Temporal handoff problem without requiring a full event bus from day one.
 
@@ -258,7 +261,7 @@ outbox worker starts Temporal workflow
 
 The outbox worker can retry safely because the workflow id is deterministic.
 
-I did not implement it here because it would add quite a bit of code without changing the main automation model - it's a prototype after all, I was focusing to show the flow.
+I did not implement it here because it would add quite a bit of code without changing the main automation model - it's a prototype after all, I was focusing on showing the flow.
 
 ### Message correlation
 

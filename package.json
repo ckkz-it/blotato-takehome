@@ -7,6 +7,7 @@
     "dev:api": "tsx src/api/server.ts",
     "dev:worker": "tsx src/temporal/worker.ts",
     "db:migrate": "tsx src/db/migrate.ts",
+    "demo": "bash scripts/demo.sh",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "typecheck": "tsc --noEmit",

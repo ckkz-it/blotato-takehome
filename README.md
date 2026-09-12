@@ -22,6 +22,8 @@ Temporal owns the execution state of running automations.
 
 Social API calls are made through Temporal Activities (without Temporal it could be done via queue + workers).
 
+> for the "system design" notes see [Production architecture](#production-architecture)
+
 ## Automation model
 
 Automations are stored as a trigger and a list of steps.
@@ -185,6 +187,8 @@ Temporal itself stores the state/history of workflow executions, so I don't dupl
 I'm assuming `external_event_id` exists, otherwise some other column would be used for deduplication, e.g. `comment_id` in this case.
 
 ## Production architecture
+
+> I focused mostly on the workflow since it's not a system design round, but some notes worth being added
 
 In the prototype I store processed event ids in Postgres and route events directly to Temporal.
 
